@@ -11,11 +11,34 @@ reports/
 └── {YYYY}/
     └── {쿼드조명}/
         └── {프로젝트명}/
-            ├── report-01.md    # 격주 보고서
+            ├── report-01.md    # 격주 진행 보고서
             ├── report-02.md
             ├── ...
+            ├── report-08.md    # 최종 기술 보고서 (is_final: true)
             └── assets/         # 스크린샷, 다이어그램 (선택)
 ```
+
+## 보고서 종류
+
+### 격주 진행 보고서 (`report-template.md`)
+
+2주 단위로 제출하는 진행 보고서입니다. 주요 항목:
+
+- **팀 전체 진행 현황**: 이번 회차 목표, 현재 진행률, 주요 달성 사항
+- **개인별 기여 내역**: 수행 작업 + 산출물 링크(GitHub 커밋, PR 등) + 기여도(%)
+- **이슈 및 해결 방안**: 기술적 병목, 일정 지연 사유 및 해결 현황
+- **다음 회차 목표**: 다음 2주간 완료할 구체적 작업 리스트
+
+### 최종 기술 보고서 (`final-report-template.md`)
+
+프로젝트 마지막 회차에 제출하는 최종 보고서입니다. `is_final: true`, `status: "완료"` 필수.
+
+- **개요 및 목적**: 연구/개발 배경, 해결하고자 한 보안 이슈
+- **기술적 상세 분석**: 환경 구성, 핵심 로직/취약점 분석
+- **최종 결과물**: 산출물 요약, GitHub repo/데모 링크
+- **실전 입증 및 성과** (심화 프로젝트 필수): 성능 수치, PoC, CVE/KISA 등
+- **팀원별 기여 상세**: 전체 기간 기여도
+- **고찰 및 결론**: 한계점, 기술적 역량 입증
 
 ## 빠른 시작
 
@@ -33,10 +56,11 @@ cd ProjectDB
 # 디렉토리 생성
 mkdir -p reports/2026/A조/web-scanner
 
-# 템플릿 복사
+# 격주 보고서 템플릿 복사
 cp templates/report-template.md reports/2026/A조/web-scanner/report-01.md
 
-# 보고서 작성
+# 최종 보고서의 경우
+cp templates/final-report-template.md reports/2026/A조/web-scanner/report-08.md
 ```
 
 ### 3. 로컬 검증

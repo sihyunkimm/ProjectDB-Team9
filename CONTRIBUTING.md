@@ -1,5 +1,29 @@
 # 프로젝트 보고서 제출 가이드
 
+## 보고서 종류
+
+| 종류 | 템플릿 | 사용 시점 |
+|------|--------|----------|
+| 격주 진행 보고서 | `templates/report-template.md` | 매 회차 (1~7차) |
+| 최종 기술 보고서 | `templates/final-report-template.md` | 마지막 회차 (8차) |
+
+### 격주 진행 보고서 구성
+
+1. **팀 전체 진행 현황** — 이번 회차 목표, 현재 진행률, 주요 달성 사항
+2. **개인별 기여 내역** — 수행 작업, 산출물 링크(GitHub 커밋/PR 등), 기여도
+3. **이슈 및 해결 방안** — 기술적 병목 구간, 일정 지연 사유, 해결 현황
+4. **다음 회차 목표** — 다음 2주간 완료할 구체적 작업 리스트
+
+### 최종 기술 보고서 구성
+
+1. **개요 및 목적** — 연구/개발 배경, 해결하고자 한 보안 이슈/기능
+2. **기술적 상세 분석** — 환경 구성, 핵심 로직(개발) 또는 취약점 분석(분석)
+3. **최종 결과물** — 산출물 요약, GitHub repo/데모 링크
+4. **실전 입증 및 성과** (심화 프로젝트 필수) — 성능 수치 비교, PoC/Exploit, CVE/KISA/Bounty 등
+5. **팀원별 기여 상세** — 전체 기간 기여도
+6. **고찰 및 결론** — 한계점, 기술적 역량 입증
+7. **참고 문헌 및 자료**
+
 ## 제출 절차
 
 ### 1. Fork & Clone
@@ -31,13 +55,11 @@ reports/{YYYY}/{쿼드조명}/{프로젝트명}/
 - **프로젝트명**: 소문자, 공백은 하이픈으로 (예: `web-scanner`, `fuzzer-dev`)
 
 ```bash
+# 격주 보고서
 mkdir -p reports/2026/A조/web-scanner
 cp templates/report-template.md reports/2026/A조/web-scanner/report-01.md
-```
 
-최종 보고서의 경우:
-
-```bash
+# 최종 보고서
 cp templates/final-report-template.md reports/2026/A조/web-scanner/report-08.md
 ```
 
@@ -57,6 +79,12 @@ YAML frontmatter를 반드시 작성합니다.
 | `status` | 진행 상태 | `진행 중` |
 | `cl_level` | CL 등급 | `CL1` |
 | `contributions` | 팀원별 기여도 | (아래 참조) |
+
+#### 최종 보고서 추가 필드
+
+| 필드 | 설명 | 예시 |
+|------|------|------|
+| `is_final` | 최종 보고서 여부 | `true` |
 
 #### status 유효값
 
@@ -114,3 +142,4 @@ GitHub에서 PR을 생성합니다. PR 템플릿을 채워주세요.
 - frontmatter 검증 CI가 통과해야 merge 가능
 - 기여도(`contributions`)는 팀 내 합의 후 작성
 - 최종 보고서(`is_final: true`)는 반드시 `status: "완료"`로 작성
+- 심화 프로젝트는 최종 보고서에 실전 입증 항목(성능 수치, PoC, 대외 인증 등)을 반드시 포함
