@@ -72,7 +72,21 @@ def format_contributions(contributions: list[dict]) -> str:
     return "\n".join(parts)
 
 
-def markdown_to_notion_blocks(md: str) -> list[dict]:
+def build_raw_image_url(relative_path: str, report_filepath: Path) -> str:
+    """상대 경로 이미지를 GitHub raw URL로 변환합니다."""
+    repo = os.environ.get("GITHUB_REPOSITORY", "")
+    if not repo:
+        return ""
+    # 보고서 파일 기준 상대 경로를 절대 경로로 변환
+    image_path = (report_filepath.parent / relative_path).as_posix()
+    # reports/ 이하 경로만 추출
+    if "reports/" in image_path:
+        idx = image_path.index("reports/")
+        image_path = image_path[idx:]
+    return f"https://raw.githubusercontent.com/{repo}/main/{image_path}"
+
+
+def markdown_to_notion_blocks(md: str, report_filepath: Path | None = None) -> list[dict]:
     """마크다운 텍스트를 Notion 블록 리스트로 변환합니다."""
     blocks = []
     lines = md.split("\n")
@@ -176,6 +190,8 @@ def markdown_to_notion_blocks(md: str) -> list[dict]:
         img_match = re.match(r"!\[([^\]]*)\]\(([^)]+)\)", line.strip())
         if img_match:
             url = img_match.group(2)
+            if not url.startswith("http") and report_filepath:
+                url = build_raw_image_url(url, report_filepath)
             if url.startswith("http"):
                 blocks.append({
                     "object": "block",
@@ -296,7 +312,7 @@ def sync_report(notion: Client, database_id: str, filepath: Path) -> None:
 
     github_url = build_github_url(filepath)
     properties = build_properties(metadata, github_url)
-    blocks = markdown_to_notion_blocks(content)
+    blocks = markdown_to_notion_blocks(content, filepath)
 
     existing_page_id = find_existing_page(
         notion, database_id, project_name, quad_name, report_number,
