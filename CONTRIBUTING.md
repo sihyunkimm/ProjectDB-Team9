@@ -4,6 +4,7 @@
 
 | 회차 | 제출일 |
 |:----:|:-----:|
+| 0차 (계획서) | |
 | 1차 | |
 | 2차 | |
 | 3차 | |
@@ -15,10 +16,22 @@
 
 ## 보고서 종류
 
-| 종류 | 템플릿 | 사용 시점 |
-|------|--------|----------|
-| 격주 진행 보고서 | `templates/report-template.md` | 매 회차 (1~7차) |
-| 최종 기술 보고서 | `templates/final-report-template.md` | 마지막 회차 (8차) |
+| 종류 | 템플릿 | 파일명 | 사용 시점 |
+|------|--------|--------|----------|
+| 프로젝트 계획서 | `templates/project-plan-template.md` | `report-00.md` | 프로젝트 시작 전 (0회차) |
+| 격주 진행 보고서 | `templates/report-template.md` | `report-01.md` ~ `report-07.md` | 매 회차 (1~7차) |
+| 최종 기술 보고서 | `templates/final-report-template.md` | `report-08.md` | 마지막 회차 (8차) |
+
+### 프로젝트 계획서 구성 (0회차)
+
+1. **프로젝트 개요** — 학교명, 동아리명, 프로젝트명, 분야, 개요, 기대효과
+2. **프로젝트 목적** — 추진배경, 취지
+3. **세부내용** — 프로젝트 상세 설명
+4. **기대효과** — 프로젝트 수행 후 기대되는 효과
+5. **수행시 문제점** — 내외부 요인 기술
+6. **수행시 요구사항** — 구성원, 개발환경 등
+7. **활용 장비 및 물품** — H/W, S/W, 기타 세부사양
+8. **팀원 역할 분담**
 
 ### 격주 진행 보고서 구성
 
@@ -68,8 +81,12 @@ reports/{YYYY}/{쿼드조명}/{프로젝트명}/
 - **프로젝트명**: 소문자, 공백은 하이픈으로 (예: `web-scanner`, `fuzzer-dev`)
 
 ```bash
-# 격주 보고서
 mkdir -p reports/2026/A조/web-scanner
+
+# 프로젝트 계획서 (0회차)
+cp templates/project-plan-template.md reports/2026/A조/web-scanner/report-00.md
+
+# 격주 보고서
 cp templates/report-template.md reports/2026/A조/web-scanner/report-01.md
 
 # 최종 보고서
@@ -87,7 +104,7 @@ YAML frontmatter를 반드시 작성합니다.
 | `project_name` | 프로젝트명 | `Web Scanner` |
 | `quad_name` | 쿼드 조 | `A조` |
 | `members` | 팀원 목록 (리스트) | `["20241234_홍길동", ...]` |
-| `report_number` | 보고 회차 (1~8) | `1` |
+| `report_number` | 보고 회차 (0~8) | `0` (계획서), `1` ~ `8` |
 | `date` | 제출일 | `2026-04-01` |
 | `status` | 진행 상태 | `진행 중` |
 | `cl_level` | CL 등급 | `CL1` |
