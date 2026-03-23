@@ -11,6 +11,7 @@ reports/
 └── {YYYY}/
     └── {쿼드조명}/
         └── {프로젝트명}/
+            ├── report-00.md    # 프로젝트 계획서 (0회차)
             ├── report-01.md    # 격주 진행 보고서
             ├── report-02.md
             ├── ...
@@ -22,6 +23,7 @@ reports/
 
 | 회차 | 제출일 |
 |:----:|:-----:|
+| 0차 (계획서) | |
 | 1차 | |
 | 2차 | |
 | 3차 | |
@@ -32,6 +34,13 @@ reports/
 | 8차 | |
 
 ## 보고서 종류
+
+### 프로젝트 계획서 (`project-plan-template.md` → `report-00.md`)
+
+프로젝트 시작 전 0회차로 제출하는 계획서입니다. KUCIS 서식7 양식을 기반으로 합니다. 주요 항목:
+
+- **프로젝트 개요:** 학교명, 동아리명, 프로젝트명, 분야, 개요, 기대효과
+- **세부 계획서:** 목적, 세부내용, 기대효과, 수행시 문제점, 요구사항, 장비/물품, 팀원 역할 분담
 
 ### 격주 진행 보고서 (`report-template.md`)
 
@@ -68,6 +77,9 @@ cd ProjectDB
 ```bash
 # 디렉토리 생성
 mkdir -p reports/2026/A조/web-scanner
+
+# 프로젝트 계획서 (0회차) 템플릿 복사
+cp templates/project-plan-template.md reports/2026/A조/web-scanner/report-00.md
 
 # 격주 보고서 템플릿 복사
 cp templates/report-template.md reports/2026/A조/web-scanner/report-01.md

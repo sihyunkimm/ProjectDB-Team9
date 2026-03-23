@@ -64,7 +64,7 @@ def validate_file(filepath: Path) -> list[str]:
     if report_number is not None:
         if not isinstance(report_number, int):
             errors.append(f"'report_number' 필드는 정수여야 합니다 (현재: {type(report_number).__name__})")
-        elif not (1 <= report_number <= 8):
+        elif not (0 <= report_number <= 8):
             errors.append(f"'report_number'는 1~8 범위여야 합니다 (현재: {report_number})")
 
     # date 타입 검사
