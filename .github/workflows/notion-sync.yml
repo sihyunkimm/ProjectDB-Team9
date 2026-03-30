@@ -30,12 +30,31 @@ jobs:
           echo "$FILES" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
+      - name: Get week number from PR comment
+        id: week
+        if: steps.changed.outputs.files != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # merge commit에서 PR 번호 추출
+          PR_NUM=$(gh pr list --state merged --limit 1 --json number --jq '.[0].number' || true)
+          if [ -z "$PR_NUM" ]; then
+            echo "week=" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          # PR 코멘트에서 /week N 파싱 (마지막 매칭 사용)
+          WEEK=$(gh pr view "$PR_NUM" --json comments --jq '.comments[].body' | grep -oP '/week\s+\K\d+' | tail -1 || true)
+          echo "week=$WEEK" >> $GITHUB_OUTPUT
+          echo "[INFO] PR #$PR_NUM → week: $WEEK"
+
       - name: Sync to Notion
         if: steps.changed.outputs.files != ''
         env:
           NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
           NOTION_PROJECT_DB_ID: ${{ secrets.NOTION_PROJECT_DB_ID }}
+          NOTION_TRACKING_DB_ID: ${{ secrets.NOTION_TRACKING_DB_ID }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_SERVER_URL: ${{ github.server_url }}
+          WEEK_NUMBER: ${{ steps.week.outputs.week }}
         run: |
           echo "${{ steps.changed.outputs.files }}" | xargs python scripts/sync_notion.py

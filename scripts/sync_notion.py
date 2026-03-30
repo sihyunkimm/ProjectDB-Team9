@@ -299,6 +299,32 @@ def clear_page_content(notion: Client, page_id: str) -> None:
         notion.blocks.delete(block_id=block["id"])
 
 
+def find_tracking_page(notion: Client, tracking_db_id: str, name: str) -> str | None:
+    """제출 현황 DB에서 이름으로 페이지를 검색합니다."""
+    response = notion.databases.query(
+        database_id=tracking_db_id,
+        filter={"property": "이름", "title": {"equals": name}},
+        page_size=1,
+    )
+    results = response.get("results", [])
+    return results[0]["id"] if results else None
+
+
+def update_tracking_checkbox(notion: Client, tracking_db_id: str, names: list[str], week: int) -> None:
+    """제출 현황 DB에서 멤버들의 W{week} 체크박스를 True로 업데이트합니다."""
+    prop_name = f"PW{week}"
+    for name in names:
+        page_id = find_tracking_page(notion, tracking_db_id, name)
+        if page_id:
+            notion.pages.update(
+                page_id=page_id,
+                properties={prop_name: {"checkbox": True}},
+            )
+            print(f"[TRACK] {name} → {prop_name} ✅")
+        else:
+            print(f"[TRACK] {name} → 제출 현황 DB에서 찾을 수 없음")
+
+
 def sync_report(notion: Client, database_id: str, filepath: Path) -> None:
     """단일 보고서를 Notion DB에 동기화합니다."""
     metadata, content = parse_report(filepath)
@@ -331,6 +357,15 @@ def sync_report(notion: Client, database_id: str, filepath: Path) -> None:
             children=blocks,
         )
         print(f"[CREATE] {quad_name} - {project_name} (회차 {report_number})")
+
+    # 제출 현황 DB 체크박스 업데이트
+    week_number = os.environ.get("WEEK_NUMBER", "")
+    tracking_db_id = os.environ.get("NOTION_TRACKING_DB_ID", "")
+    if week_number and tracking_db_id:
+        week = int(week_number)
+        members = metadata.get("members", [])
+        if members:
+            update_tracking_checkbox(notion, tracking_db_id, members, week)
 
 
 def main() -> int:
