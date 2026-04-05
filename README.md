@@ -4,6 +4,10 @@ ASC 보안 동아리 프로젝트 보고서 관리 시스템
 
 쿼드 팀이 Git PR로 격주 보고서를 제출하면, 관리자 리뷰 후 merge 시 자동으로 Notion DB에 동기화됩니다.
 
+## 마감
+
+- **매주 화요일 23:59** 까지 PR merge 완료 시 해당 주차 제출로 인정
+
 ## 구조
 
 ```
@@ -113,6 +117,7 @@ git push origin project/A조/web-scanner/report-01
 [쿼드 팀] -> fork/branch -> [PR 제출] -> 리뷰 -> [merge] -> [GitHub Actions] -> [Notion DB]
                                  |                              |
                            CI: frontmatter 검증         변경된 .md 파싱 -> 동기화
+                                                        + 제출 현황 체크박스 업데이트
 ```
 
 ## 설정 (관리자)
@@ -123,6 +128,7 @@ git push origin project/A조/web-scanner/report-01
 |--------|------|
 | `NOTION_API_KEY` | Notion Internal Integration Token |
 | `NOTION_PROJECT_DB_ID` | 대상 Notion ProjectDB ID |
+| `NOTION_TRACKING_DB_ID` | 제출 현황 DB ID |
 
 ### Notion DB 스키마
 
@@ -131,14 +137,13 @@ git push origin project/A조/web-scanner/report-01
 | 프로젝트명 | Title | PK 역할 |
 | 쿼드 조 | Select | A조, B조, ... |
 | 조원 | Rich text | members join |
-| 보고 회차 | Number | 1~8 |
+| 보고 회차 | Number | 0~8 |
 | 제출일 | Date | |
 | 진행 상태 | Status | 시작 전/진행 중/보류/완료 |
 | CL 등급 | Select | CL1~CL4 |
 | 최종 보고서 | Checkbox | is_final |
-| 프로젝트 유형 | Select | 운영진 수동 판정 (기초/심화) |
-| Git 링크 | URL | 보고서 원문 링크 |
 | 기여도 | Rich text | 팀원별 기여도 |
+| Git 링크 | URL | 보고서 원문 링크 |
 
 ### 브랜치 보호 규칙 (권장)
 
