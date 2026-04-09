@@ -58,7 +58,8 @@ def get_notion_client() -> Client:
     if not api_key:
         print("Error: NOTION_API_KEY 환경변수가 설정되지 않았습니다.")
         sys.exit(1)
-    return Client(auth=api_key)
+    timeout_ms = int(os.environ.get("NOTION_TIMEOUT_MS", "60000"))
+    return Client(auth=api_key, timeout_ms=timeout_ms)
 
 
 def get_database_id() -> str:
