@@ -1,4 +1,5 @@
 import importlib.util
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -116,6 +117,22 @@ class CodeLanguageTests(unittest.TestCase):
 
         self.assertEqual(blocks[0]["type"], "code")
         self.assertEqual(blocks[0]["code"]["language"], "plain text")
+
+
+class FrontmatterParsingTests(unittest.TestCase):
+    def test_parse_report_handles_utf8_bom(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "bom.md"
+            path.write_text(
+                "\ufeff---\nproject_name: GhostRelay\nquad_name: 4조\nreport_number: 0\n---\nbody\n",
+                encoding="utf-8",
+            )
+
+            metadata, content = sync_notion.parse_report(path)
+
+        self.assertEqual(metadata["project_name"], "GhostRelay")
+        self.assertEqual(metadata["quad_name"], "4조")
+        self.assertEqual(content.strip(), "body")
 
 
 if __name__ == "__main__":
