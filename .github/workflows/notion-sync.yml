@@ -36,10 +36,13 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # merge commit에서 PR 번호 추출
-          PR_NUM=$(gh pr list --state merged --limit 1 --json number --jq '.[0].number' || true)
+          PR_NUM=$(printf '%s\n' "${{ github.event.head_commit.message }}" | grep -oE 'Merge pull request #[0-9]+' | grep -oE '[0-9]+' | head -1 || true)
+          if [ -z "$PR_NUM" ]; then
+            PR_NUM=$(gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/pulls" --jq 'map(select(.merged_at != null))[0].number // empty' || true)
+          fi
           if [ -z "$PR_NUM" ]; then
             echo "week=" >> $GITHUB_OUTPUT
+            echo "[WARN] PR 번호를 찾지 못해 week를 비웁니다."
             exit 0
           fi
           # PR 코멘트에서 /week N 파싱 (마지막 매칭 사용)
