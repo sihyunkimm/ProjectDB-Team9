@@ -160,29 +160,14 @@ def markdown_to_notion_blocks(md: str, report_filepath: Path | None = None) -> l
             continue
 
         # 제목
-        if line.startswith("### "):
+        heading_match = re.match(r"^(#{1,3})\s*(.+)$", line)
+        if heading_match:
+            level = len(heading_match.group(1))
+            heading_text = heading_match.group(2).strip()
             blocks.append({
                 "object": "block",
-                "type": "heading_3",
-                "heading_3": {"rich_text": rich_text(line[4:].strip())},
-            })
-            i += 1
-            continue
-
-        if line.startswith("## "):
-            blocks.append({
-                "object": "block",
-                "type": "heading_2",
-                "heading_2": {"rich_text": rich_text(line[3:].strip())},
-            })
-            i += 1
-            continue
-
-        if line.startswith("# "):
-            blocks.append({
-                "object": "block",
-                "type": "heading_1",
-                "heading_1": {"rich_text": rich_text(line[2:].strip())},
+                "type": f"heading_{level}",
+                f"heading_{level}": {"rich_text": rich_text(heading_text)},
             })
             i += 1
             continue
@@ -247,7 +232,7 @@ def markdown_to_notion_blocks(md: str, report_filepath: Path | None = None) -> l
         # 일반 텍스트 (연속된 줄을 하나의 paragraph로)
         para_lines = []
         while i < len(lines) and lines[i].strip() and not any([
-            lines[i].startswith("#"),
+            re.match(r"^(#{1,3})\s+.+$", lines[i]),
             lines[i].startswith("> "),
             lines[i].startswith("```"),
             re.match(r"^[-*] ", lines[i]),
@@ -255,6 +240,9 @@ def markdown_to_notion_blocks(md: str, report_filepath: Path | None = None) -> l
             re.match(r"^(-{3,}|\*{3,}|_{3,})$", lines[i].strip()),
             re.match(r"!\[([^\]]*)\]\(([^)]+)\)", lines[i].strip()),
         ]):
+            para_lines.append(lines[i])
+            i += 1
+        if not para_lines:
             para_lines.append(lines[i])
             i += 1
         blocks.append({

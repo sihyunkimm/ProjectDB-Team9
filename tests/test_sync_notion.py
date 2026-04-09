@@ -118,6 +118,15 @@ class CodeLanguageTests(unittest.TestCase):
         self.assertEqual(blocks[0]["type"], "code")
         self.assertEqual(blocks[0]["code"]["language"], "plain text")
 
+    def test_markdown_parser_handles_heading_without_space(self) -> None:
+        blocks = sync_notion.markdown_to_notion_blocks("###배운점\n본문")
+
+        self.assertEqual(blocks[0]["type"], "heading_3")
+        self.assertEqual(
+            blocks[0]["heading_3"]["rich_text"][0]["text"]["content"],
+            "배운점",
+        )
+
 
 class FrontmatterParsingTests(unittest.TestCase):
     def test_parse_report_handles_utf8_bom(self) -> None:
