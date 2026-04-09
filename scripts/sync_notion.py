@@ -17,9 +17,40 @@ import os
 import re
 import sys
 from pathlib import Path
+from typing import Any
 
 import frontmatter
 from notion_client import Client
+
+_DATA_SOURCE_IDS: dict[str, str] = {}
+NOTION_CODE_LANGUAGES = {
+    "abap", "abc", "agda", "arduino", "ascii art", "assembly", "bash", "basic",
+    "bnf", "c", "c#", "c++", "clojure", "coffeescript", "coq", "css", "dart",
+    "dhall", "diff", "docker", "ebnf", "elixir", "elm", "erlang", "f#",
+    "flow", "fortran", "gherkin", "glsl", "go", "graphql", "groovy", "haskell",
+    "hcl", "html", "idris", "java", "javascript", "json", "julia", "kotlin",
+    "latex", "less", "lisp", "livescript", "llvm ir", "lua", "makefile",
+    "markdown", "markup", "matlab", "mathematica", "mermaid", "nix",
+    "notion formula", "objective-c", "ocaml", "pascal", "perl", "php",
+    "plain text", "powershell", "prolog", "protobuf", "purescript", "python",
+    "r", "racket", "reason", "ruby", "rust", "sass", "scala", "scheme",
+    "scss", "shell", "smalltalk", "solidity", "sql", "swift", "toml",
+    "typescript", "vb.net", "verilog", "vhdl", "visual basic", "webassembly",
+    "xml", "yaml", "java/c/c++/c#",
+}
+CODE_LANGUAGE_ALIASES = {
+    "plaintext": "plain text",
+    "text": "plain text",
+    "txt": "plain text",
+    "console": "shell",
+    "shell script": "shell",
+    "sh": "shell",
+    "zsh": "shell",
+    "py": "python",
+    "js": "javascript",
+    "ts": "typescript",
+    "yml": "yaml",
+}
 
 
 def get_notion_client() -> Client:
@@ -58,6 +89,12 @@ def rich_text(content: str) -> list[dict]:
     if len(content) > 2000:
         content = content[:2000]
     return [{"type": "text", "text": {"content": content}}]
+
+
+def normalize_code_language(lang: str) -> str:
+    """Notion이 허용하는 코드 블록 언어로 정규화합니다."""
+    normalized = CODE_LANGUAGE_ALIASES.get(lang.strip().lower(), lang.strip().lower())
+    return normalized if normalized in NOTION_CODE_LANGUAGES else "plain text"
 
 
 def format_contributions(contributions: list[dict]) -> str:
@@ -117,7 +154,7 @@ def markdown_to_notion_blocks(md: str, report_filepath: Path | None = None) -> l
                 "type": "code",
                 "code": {
                     "rich_text": rich_text(code_content),
-                    "language": lang if lang else "plain text",
+                    "language": normalize_code_language(lang),
                 },
             })
             continue
@@ -259,6 +296,42 @@ def find_existing_page(
     return None
 
 
+def resolve_query_target_id(notion: Client, database_id: str) -> str:
+    """Notion DB query에 사용할 식별자를 반환합니다."""
+    if hasattr(notion.databases, "query"):
+        return database_id
+
+    cached_id = _DATA_SOURCE_IDS.get(database_id)
+    if cached_id:
+        return cached_id
+
+    database = notion.databases.retrieve(database_id=database_id)
+    data_sources = database.get("data_sources") or []
+    if not data_sources and database.get("initial_data_source"):
+        data_sources = [database["initial_data_source"]]
+
+    for data_source in data_sources:
+        data_source_id = data_source.get("id") if isinstance(data_source, dict) else None
+        if data_source_id:
+            _DATA_SOURCE_IDS[database_id] = data_source_id
+            return data_source_id
+
+    raise RuntimeError(
+        f"Database {database_id} 에 query 가능한 data source가 없습니다. "
+        "Notion API 버전과 데이터베이스 접근 권한을 확인하세요."
+    )
+
+
+def query_database(notion: Client, database_id: str, **kwargs: Any) -> dict[str, Any]:
+    """구/신 Notion SDK 모두에서 동작하도록 데이터베이스를 조회합니다."""
+    if hasattr(notion.databases, "query"):
+        return notion.databases.query(database_id=database_id, **kwargs)
+    return notion.data_sources.query(
+        data_source_id=resolve_query_target_id(notion, database_id),
+        **kwargs,
+    )
+
+
 def build_properties(metadata: dict, github_url: str) -> dict:
     """frontmatter 메타데이터를 Notion properties로 변환합니다."""
     properties = {
@@ -301,8 +374,9 @@ def clear_page_content(notion: Client, page_id: str) -> None:
 
 def find_tracking_page(notion: Client, tracking_db_id: str, name: str) -> str | None:
     """제출 현황 DB에서 이름으로 페이지를 검색합니다."""
-    response = notion.databases.query(
-        database_id=tracking_db_id,
+    response = query_database(
+        notion,
+        tracking_db_id,
         filter={"property": "이름", "title": {"equals": name}},
         page_size=1,
     )

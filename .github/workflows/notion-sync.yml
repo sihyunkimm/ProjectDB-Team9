@@ -57,4 +57,10 @@ jobs:
           GITHUB_SERVER_URL: ${{ github.server_url }}
           WEEK_NUMBER: ${{ steps.week.outputs.week }}
         run: |
-          echo "${{ steps.changed.outputs.files }}" | xargs python scripts/sync_notion.py
+          FILES="${{ steps.changed.outputs.files }}"
+          while IFS= read -r file; do
+            if [ -z "$file" ]; then
+              continue
+            fi
+            python scripts/sync_notion.py "$file"
+          done <<< "$FILES"

@@ -33,4 +33,9 @@ jobs:
             echo "No report files changed."
             exit 0
           fi
-          echo "$FILES" | xargs python scripts/validate_frontmatter.py
+          while IFS= read -r file; do
+            if [ -z "$file" ]; then
+              continue
+            fi
+            python scripts/validate_frontmatter.py "$file"
+          done <<< "$FILES"
