@@ -6,6 +6,16 @@ on:
       - main
     paths:
       - "reports/**/*.md"
+  workflow_dispatch:
+    inputs:
+      files:
+        description: "동기화할 보고서 경로 (쉼표 또는 개행 구분, 비우면 reports/ 전체)"
+        required: false
+        default: ""
+      week:
+        description: "PW 주차 번호 (선택, 제출 현황 DB 체크박스 갱신용)"
+        required: false
+        default: ""
 
 jobs:
   sync:
@@ -22,20 +32,38 @@ jobs:
       - name: Install dependencies
         run: pip install -r scripts/requirements.txt
 
-      - name: Get changed report files
+      - name: Resolve target report files
         id: changed
+        env:
+          INPUT_FILES: ${{ inputs.files }}
         run: |
-          FILES=$(git diff --name-only --diff-filter=ACMR HEAD~1 HEAD -- 'reports/**/*.md' || true)
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            if [ -z "$INPUT_FILES" ]; then
+              FILES=$(find reports -type f -name '*.md' | sort)
+              echo "[INFO] manual dispatch → reports/ 전체 ($(echo "$FILES" | grep -c . || true) 파일)"
+            else
+              FILES=$(printf '%s\n' "$INPUT_FILES" | tr ',' '\n' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//' | grep -v '^$' || true)
+              echo "[INFO] manual dispatch → 입력 파일 사용"
+            fi
+          else
+            FILES=$(git diff --name-only --diff-filter=ACMR HEAD~1 HEAD -- 'reports/**/*.md' || true)
+          fi
           echo "files<<EOF" >> $GITHUB_OUTPUT
           echo "$FILES" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Get week number from PR comment
+      - name: Resolve week number
         id: week
         if: steps.changed.outputs.files != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INPUT_WEEK: ${{ inputs.week }}
         run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "week=$INPUT_WEEK" >> $GITHUB_OUTPUT
+            echo "[INFO] manual dispatch → week: ${INPUT_WEEK:-(none)}"
+            exit 0
+          fi
           PR_NUM=$(printf '%s\n' "${{ github.event.head_commit.message }}" | grep -oE 'Merge pull request #[0-9]+' | grep -oE '[0-9]+' | head -1 || true)
           if [ -z "$PR_NUM" ]; then
             PR_NUM=$(gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/pulls" --jq 'map(select(.merged_at != null))[0].number // empty' || true)

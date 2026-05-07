@@ -120,6 +120,21 @@ git push origin project/A조/web-scanner/report-01
                                                         + 제출 현황 체크박스 업데이트
 ```
 
+### 수동 재동기화
+
+merge 없이 보고서를 수정한 뒤 Notion만 새로 갱신해야 할 때는 `Sync to Notion` 워크플로우를 수동 실행하세요.
+
+- GitHub UI: Actions → **Sync to Notion** → **Run workflow**
+  - `files`: 동기화할 보고서 경로 (쉼표/개행 구분, 비우면 `reports/` 전체)
+  - `week`: 제출 현황 DB의 PW 체크박스를 갱신할 주차 (선택)
+- CLI:
+
+  ```bash
+  gh workflow run notion-sync.yml \
+    -f files="reports/2026/A조/foo/report-01.md" \
+    -f week=3
+  ```
+
 ## 설정 (관리자)
 
 ### GitHub Secrets
