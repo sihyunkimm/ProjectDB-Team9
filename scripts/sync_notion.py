@@ -23,6 +23,10 @@ import frontmatter
 from notion_client import Client
 
 _DATA_SOURCE_IDS: dict[str, str] = {}
+TRACKING_GROUP_PROPERTY_NAMES = {
+    "조", "소속 조", "쿼드 조", "쿼드조", "팀", "팀명", "그룹",
+    "team", "team_name", "group", "quad", "quad_name",
+}
 NOTION_CODE_LANGUAGES = {
     "abap", "abc", "agda", "arduino", "ascii art", "assembly", "bash", "basic",
     "bnf", "c", "c#", "c++", "clojure", "coffeescript", "coq", "css", "dart",
@@ -321,6 +325,94 @@ def query_database(notion: Client, database_id: str, **kwargs: Any) -> dict[str,
     )
 
 
+def tracking_name_candidates(member_name: str) -> list[str]:
+    """제출 현황 DB 검색에 사용할 이름 후보를 반환합니다."""
+    name = member_name.strip()
+    candidates = []
+
+    def add(candidate: str) -> None:
+        candidate = candidate.strip()
+        if candidate and candidate not in candidates:
+            candidates.append(candidate)
+
+    add(name)
+    match = re.match(r"^\d{4,}[_\s-]+(.+)$", name)
+    if match:
+        add(match.group(1))
+    elif "_" in name:
+        add(name.rsplit("_", 1)[1])
+
+    return candidates
+
+
+def normalize_tracking_group(value: Any) -> str:
+    """조/팀 표기를 비교 가능한 형태로 정규화합니다."""
+    text = str(value).strip().lower()
+    text = re.sub(r"\s+", "", text)
+    text = text.replace("_", "").replace("-", "")
+
+    team_match = re.fullmatch(r"team(\d+)", text)
+    if team_match:
+        return f"{int(team_match.group(1))}조"
+
+    number_match = re.fullmatch(r"(\d+)조?", text)
+    if number_match:
+        return f"{int(number_match.group(1))}조"
+
+    alpha_match = re.fullmatch(r"([a-z])조?", text)
+    if alpha_match:
+        return f"{alpha_match.group(1)}조"
+
+    return text
+
+
+def notion_property_values(prop: dict[str, Any]) -> list[str]:
+    """Notion property에서 비교 가능한 문자열 값을 추출합니다."""
+    prop_type = prop.get("type")
+    values = []
+
+    if prop_type in {"title", "rich_text"}:
+        for item in prop.get(prop_type, []):
+            text = item.get("plain_text") or item.get("text", {}).get("content")
+            if text:
+                values.append(text)
+    elif prop_type in {"select", "status"}:
+        option = prop.get(prop_type)
+        if option and option.get("name"):
+            values.append(option["name"])
+    elif prop_type == "multi_select":
+        values.extend(option["name"] for option in prop.get("multi_select", []))
+    elif prop_type == "number" and prop.get("number") is not None:
+        values.append(str(prop["number"]))
+    elif prop_type == "formula":
+        formula = prop.get("formula", {})
+        formula_type = formula.get("type")
+        if formula_type and formula.get(formula_type) is not None:
+            values.append(str(formula[formula_type]))
+
+    return values
+
+
+def tracking_page_group_values(page: dict[str, Any]) -> list[str]:
+    """제출 현황 페이지의 조/팀 속성 값을 반환합니다."""
+    values = []
+    props = page.get("properties", {})
+    for prop_name, prop in props.items():
+        if prop_name not in TRACKING_GROUP_PROPERTY_NAMES:
+            continue
+        values.extend(notion_property_values(prop))
+    return values
+
+
+def tracking_page_matches_group(page: dict[str, Any], quad_name: str) -> bool:
+    """제출 현황 페이지가 보고서의 조와 일치하는지 확인합니다."""
+    target = normalize_tracking_group(quad_name)
+    return any(
+        normalize_tracking_group(value) == target
+        for value in tracking_page_group_values(page)
+    )
+
+
 def build_properties(metadata: dict, github_url: str) -> dict:
     """frontmatter 메타데이터를 Notion properties로 변환합니다."""
     properties = {
@@ -361,23 +453,57 @@ def clear_page_content(notion: Client, page_id: str) -> None:
         notion.blocks.delete(block_id=block["id"])
 
 
-def find_tracking_page(notion: Client, tracking_db_id: str, name: str) -> str | None:
-    """제출 현황 DB에서 이름으로 페이지를 검색합니다."""
-    response = query_database(
-        notion,
-        tracking_db_id,
-        filter={"property": "이름", "title": {"equals": name}},
-        page_size=1,
-    )
-    results = response.get("results", [])
-    return results[0]["id"] if results else None
+def find_tracking_page(
+    notion: Client,
+    tracking_db_id: str,
+    name: str,
+    quad_name: str = "",
+) -> str | None:
+    """제출 현황 DB에서 이름과 조로 페이지를 검색합니다."""
+    for candidate in tracking_name_candidates(name):
+        response = query_database(
+            notion,
+            tracking_db_id,
+            filter={"property": "이름", "title": {"equals": candidate}},
+            page_size=100,
+        )
+        results = response.get("results", [])
+        if not results:
+            continue
+
+        if quad_name:
+            group_matches = [
+                page for page in results
+                if tracking_page_matches_group(page, quad_name)
+            ]
+            if len(group_matches) == 1:
+                return group_matches[0]["id"]
+            if len(group_matches) > 1:
+                print(f"[TRACK] {name} → {quad_name} 내 동명이인 후보가 여러 명입니다.")
+                return None
+            if any(tracking_page_group_values(page) for page in results):
+                print(f"[TRACK] {name} → {quad_name}에 해당하는 제출 현황 페이지가 없습니다.")
+                return None
+
+        if len(results) == 1:
+            return results[0]["id"]
+
+        print(f"[TRACK] {name} → 동명이인 후보가 여러 명입니다. 조 정보를 확인하세요.")
+        return None
+    return None
 
 
-def update_tracking_checkbox(notion: Client, tracking_db_id: str, names: list[str], week: int) -> None:
+def update_tracking_checkbox(
+    notion: Client,
+    tracking_db_id: str,
+    names: list[str],
+    week: int,
+    quad_name: str = "",
+) -> None:
     """제출 현황 DB에서 멤버들의 W{week} 체크박스를 True로 업데이트합니다."""
     prop_name = f"PW{week}"
     for name in names:
-        page_id = find_tracking_page(notion, tracking_db_id, name)
+        page_id = find_tracking_page(notion, tracking_db_id, name, quad_name)
         if page_id:
             notion.pages.update(
                 page_id=page_id,
@@ -428,7 +554,7 @@ def sync_report(notion: Client, database_id: str, filepath: Path) -> None:
         week = int(week_number)
         members = metadata.get("members", [])
         if members:
-            update_tracking_checkbox(notion, tracking_db_id, members, week)
+            update_tracking_checkbox(notion, tracking_db_id, members, week, quad_name)
 
 
 def main() -> int:

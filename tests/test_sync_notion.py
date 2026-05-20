@@ -50,6 +50,48 @@ class NewNotion:
         self.data_sources = NewDataSources()
 
 
+class TrackingDatabases:
+    def __init__(self, pages_by_name) -> None:
+        self.pages_by_name = pages_by_name
+        self.calls = []
+
+    def query(self, **kwargs):
+        self.calls.append(kwargs)
+        name = kwargs["filter"]["title"]["equals"]
+        pages = self.pages_by_name.get(name)
+        if not pages:
+            return {"results": []}
+        if isinstance(pages, str):
+            return {"results": [{"id": pages, "properties": {}}]}
+        if isinstance(pages, dict):
+            return {"results": [pages]}
+        return {"results": pages}
+
+
+class TrackingPages:
+    def __init__(self) -> None:
+        self.update_calls = []
+
+    def update(self, **kwargs):
+        self.update_calls.append(kwargs)
+
+
+class TrackingNotion:
+    def __init__(self, pages_by_name) -> None:
+        self.databases = TrackingDatabases(pages_by_name)
+        self.pages = TrackingPages()
+
+
+def tracking_page(page_id, group=None, group_property="조"):
+    properties = {}
+    if group:
+        properties[group_property] = {
+            "type": "select",
+            "select": {"name": group},
+        }
+    return {"id": page_id, "properties": properties}
+
+
 class QueryDatabaseTests(unittest.TestCase):
     def setUp(self) -> None:
         sync_notion._DATA_SOURCE_IDS.clear()
@@ -142,6 +184,107 @@ class FrontmatterParsingTests(unittest.TestCase):
         self.assertEqual(metadata["project_name"], "GhostRelay")
         self.assertEqual(metadata["quad_name"], "4조")
         self.assertEqual(content.strip(), "body")
+
+
+class TrackingCheckboxTests(unittest.TestCase):
+    def test_tracking_name_candidates_include_name_without_student_id(self) -> None:
+        self.assertEqual(
+            sync_notion.tracking_name_candidates("20252718_김도형"),
+            ["20252718_김도형", "김도형"],
+        )
+
+    def test_find_tracking_page_falls_back_to_name_without_student_id(self) -> None:
+        notion = TrackingNotion({"김도형": "page-kim"})
+
+        page_id = sync_notion.find_tracking_page(
+            notion,
+            "tracking-db",
+            "20252718_김도형",
+        )
+
+        self.assertEqual(page_id, "page-kim")
+        queried_names = [
+            call["filter"]["title"]["equals"]
+            for call in notion.databases.calls
+        ]
+        self.assertEqual(queried_names, ["20252718_김도형", "김도형"])
+
+    def test_find_tracking_page_uses_group_when_duplicate_names_exist(self) -> None:
+        notion = TrackingNotion(
+            {
+                "김도형": [
+                    tracking_page("page-team4", "4조"),
+                    tracking_page("page-team5", "5조"),
+                ],
+            }
+        )
+
+        page_id = sync_notion.find_tracking_page(
+            notion,
+            "tracking-db",
+            "20252718_김도형",
+            "team5",
+        )
+
+        self.assertEqual(page_id, "page-team5")
+
+    def test_find_tracking_page_returns_none_for_ambiguous_duplicate_names(self) -> None:
+        notion = TrackingNotion(
+            {
+                "김도형": [
+                    tracking_page("page-team4", "4조"),
+                    tracking_page("page-team5", "5조"),
+                ],
+            }
+        )
+
+        page_id = sync_notion.find_tracking_page(
+            notion,
+            "tracking-db",
+            "20252718_김도형",
+        )
+
+        self.assertIsNone(page_id)
+
+    def test_find_tracking_page_rejects_single_wrong_group_match(self) -> None:
+        notion = TrackingNotion({"김도형": tracking_page("page-team4", "4조")})
+
+        page_id = sync_notion.find_tracking_page(
+            notion,
+            "tracking-db",
+            "20252718_김도형",
+            "team5",
+        )
+
+        self.assertIsNone(page_id)
+
+    def test_update_tracking_checkbox_uses_fallback_tracking_page(self) -> None:
+        notion = TrackingNotion(
+            {
+                "김도형": [
+                    tracking_page("page-team4", "4조"),
+                    tracking_page("page-team5", "5조"),
+                ],
+            }
+        )
+
+        sync_notion.update_tracking_checkbox(
+            notion,
+            "tracking-db",
+            ["20252718_김도형"],
+            2,
+            "team5",
+        )
+
+        self.assertEqual(
+            notion.pages.update_calls,
+            [
+                {
+                    "page_id": "page-team5",
+                    "properties": {"PW2": {"checkbox": True}},
+                },
+            ],
+        )
 
 
 if __name__ == "__main__":
