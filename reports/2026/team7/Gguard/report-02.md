@@ -2,7 +2,7 @@
 project_name: "G-Guard: 고도 엔진 기반 취약점 분석 및 전용 안티치트 솔루션 개발"
 quad_name: "team7"
 members: ["20221809_이채은", "20211677_김영현", "20253327_박성현", "20261616_김인환"]
-report_number: 1               
+report_number: 2               
 date: "2026-05-18"
 status: "진행 중"
 cl_level: "CL1"
