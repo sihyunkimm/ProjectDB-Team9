@@ -264,29 +264,25 @@ def find_existing_page(
     notion: Client, database_id: str,
     project_name: str, quad_name: str, report_number: int,
 ) -> str | None:
-    """프로젝트명+쿼드조+회차로 기존 Notion 페이지를 검색합니다. 있으면 page_id 반환."""
-    response = notion.search(
-        query=project_name,
-        filter={"value": "page", "property": "object"},
+    """프로젝트명+쿼드조+회차로 기존 Notion 페이지를 검색합니다. 있으면 page_id 반환.
+
+    notion.search()는 인덱스 기반이라 방금 생성한 페이지가 누락되어 같은 보고서를
+    중복 생성할 수 있으므로, DB를 직접 query 하여 정확히 매칭합니다.
+    """
+    response = query_database(
+        notion,
+        database_id,
+        filter={
+            "and": [
+                {"property": "프로젝트명", "title": {"equals": project_name}},
+                {"property": "쿼드 조", "select": {"equals": quad_name}},
+                {"property": "보고 회차", "number": {"equals": report_number}},
+            ]
+        },
+        page_size=1,
     )
-    for page in response.get("results", []):
-        if page.get("parent", {}).get("database_id", "").replace("-", "") != database_id.replace("-", ""):
-            continue
-        props = page.get("properties", {})
-        # 프로젝트명(Title) 확인
-        title_prop = props.get("프로젝트명", {})
-        title_texts = title_prop.get("title", [])
-        title = title_texts[0]["plain_text"] if title_texts else ""
-        # 쿼드 조(Select) 확인
-        quad_prop = props.get("쿼드 조", {})
-        quad_select = quad_prop.get("select")
-        quad = quad_select["name"] if quad_select else ""
-        # 보고 회차(Number) 확인
-        number_prop = props.get("보고 회차", {})
-        number = number_prop.get("number")
-        if title == project_name and quad == quad_name and number == report_number:
-            return page["id"]
-    return None
+    results = response.get("results", [])
+    return results[0]["id"] if results else None
 
 
 def resolve_query_target_id(notion: Client, database_id: str) -> str:

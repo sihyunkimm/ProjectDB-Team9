@@ -1,0 +1,35 @@
+name: Dedupe Notion ProjectDB
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: "true 면 실제 archive, 그 외엔 dry-run(변경 없음)"
+        required: false
+        default: "false"
+
+jobs:
+  dedupe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r scripts/requirements.txt
+
+      - name: Dedupe ProjectDB
+        env:
+          NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+          NOTION_PROJECT_DB_ID: ${{ secrets.NOTION_PROJECT_DB_ID }}
+        run: |
+          if [ "${{ inputs.apply }}" = "true" ]; then
+            echo "[INFO] apply 모드 → 실제 archive"
+            python scripts/dedupe_notion.py --apply
+          else
+            echo "[INFO] dry-run 모드 → 변경 없음 (apply=true 로 재실행 시 archive)"
+            python scripts/dedupe_notion.py
+          fi
